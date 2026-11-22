@@ -8,22 +8,62 @@
 <div id="homePage">
 <div class="welcome"><strong>Kuponunu kendin oluştur!</strong><p>Seçimlerini ekle, oranları hesapla ve kuponlarını telefonunda sakla.</p></div>
 <div class="section-title">Spor kategorileri</div><div class="sports"><div class="sport active"><span>⚽</span>Futbol</div><div class="sport"><span>🏀</span>Basketbol</div><div class="sport"><span>🎾</span>Tenis</div><div class="sport"><span>🏐</span>Voleybol</div><div class="sport"><span>🏒</span>Diğer</div></div>
-<div class="row"><div class="section-title">Örnek maçlar</div><span class="badge">Demo içerik</span></div>
-<div class="tabs"><button class="tab active">Tümü</button><button class="tab">Bugün</button><button class="tab">Popüler</button></div>
-<div id="matches"></div>
+<div class="row"><div class="section-title">Futbol maçları</div><button class="btn light" onclick="loadFixtures(selectedDay)">↻ Yenile</button></div>
+<div class="tabs"><button class="tab active" id="day0" onclick="loadFixtures(0)">Bugün</button><button class="tab" id="day1" onclick="loadFixtures(1)">Yarın</button><button class="tab" id="day2" onclick="loadFixtures(2)">Sonraki gün</button></div>
+<div id="fixtureStatus" class="muted" style="padding:4px 2px 10px">Maçlar yükleniyor…</div><div id="matches"></div>
 <div class="panel"><div class="section-title" style="margin-top:0">Kendi maçını ekle</div><input id="customMatch" class="field" placeholder="Takım A - Takım B"><input id="customMarket" class="field" placeholder="Tahmin (Örn. 1, X, 2.5 Üst)"><input id="customOdds" class="field" type="number" min="1" step=".01" placeholder="Oran (Örn. 1.75)"><button class="btn dark full" onclick="addCustom()">Kupona ekle</button></div>
 </div>
 <div id="couponPage" class="hide"><div class="section-title">Kupon detayım</div><div class="panel"><div id="picks"><div class="empty">Henüz seçim yapmadın. Ana sayfadan oran seçebilirsin.</div></div><div class="row"><span class="muted">Toplam oran</span><strong id="totalOdds">1.00</strong></div><label class="muted" for="stake">Kupon tutarı (₺)</label><input id="stake" class="field" type="number" min="0" step=".01" value="10"><div class="row"><span class="muted">Olası dönüş (hesaplama)</span><strong class="green" id="possible">₺10,00</strong></div><button class="btn full" style="margin-top:14px" onclick="saveCoupon()">Kuponu kaydet</button><button class="btn light full" style="margin-top:8px" onclick="clearPicks()">Seçimleri temizle</button></div></div>
 <div id="savedPage" class="hide"><div class="section-title">Kuponlarım</div><div class="panel"><div id="savedList"></div><div class="row" style="margin-top:12px"><button class="btn light" onclick="exportData()">Yedekle</button><button class="btn light" onclick="document.getElementById('importFile').click()">Yedek yükle</button><input id="importFile" type="file" accept="application/json" hidden onchange="importData(event)"></div></div></div>
-<div class="muted" style="text-align:center;padding:12px">Kuponum kişisel kupon notu ve oran hesaplama uygulamasıdır. Gerçek bahis, ödeme veya canlı maç verisi sunmaz. Maçlar örnek içeriktir.</div>
+<div class="muted" style="text-align:center;padding:12px">Kuponum kişisel kupon notu ve oran hesaplama uygulamasıdır. Gerçek bahis, ödeme veya canlı maç verisi sunmaz. Maç fikstürü TheSportsDB üzerinden alınır; oranlar otomatik sağlanmaz.</div>
 </main>
 <nav class="bottom"><button class="nav active" id="navHome" onclick="showPage('home')"><span>⌂</span>Ana Sayfa</button><button class="nav" id="navCoupon" onclick="showPage('coupon')"><span>▤</span>Kuponum</button><button class="nav" id="navSaved" onclick="showPage('saved')"><span>▣</span>Kuponlarım</button><button class="nav" onclick="showPage('coupon')"><span>＋</span>Kupon Yap</button></nav>
 <script>
-const demo=[{league:'Türkiye · Süper Lig',time:'Bugün 20:00',home:'Galatasaray',away:'Fenerbahçe',odds:[['1',1.85],['X',3.25],['2',3.10]]},{league:'İngiltere · Premier League',time:'Bugün 19:30',home:'Arsenal',away:'Chelsea',odds:[['1',1.95],['X',3.40],['2',3.60]]},{league:'İspanya · La Liga',time:'Bugün 22:00',home:'Real Madrid',away:'Sevilla',odds:[['1',1.45],['X',4.10],['2',6.20]]},{league:'İtalya · Serie A',time:'Yarın 21:45',home:'Milan',away:'Inter',odds:[['1',2.70],['X',3.10],['2',2.35]]}];
-let picks=[];const money=n=>new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY'}).format(n);const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let matches=[],picks=[],selectedDay=0;
+const money=n=>new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY'}).format(n);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function saved(){try{return JSON.parse(localStorage.getItem('kuponum_saved')||'[]')}catch(e){return []}}
-function drawMatches(){document.getElementById('matches').innerHTML=demo.map((m,i)=>'<div class="match"><div class="league">'+m.league+' <span class="time">'+m.time+'</span></div><div class="teams">'+m.home+'<br>'+m.away+'</div><div class="odds">'+m.odds.map((o,j)=>'<button class="odd" onclick="pick('+i+','+j+')">'+o[0]+'<b>'+o[1].toFixed(2)+'</b></button>').join('')+'</div></div>').join('')}
-function pick(i,j){let m=demo[i],o=m.odds[j];picks.push({league:m.league,match:m.home+' - '+m.away,selection:o[0],odds:o[1]});renderPicks();showPage('coupon')}
+function dateForOffset(offset){let d=new Date();d.setDate(d.getDate()+offset);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function loadFixtures(offset=0){
+ selectedDay=offset;
+ [0,1,2].forEach(i=>{let b=document.getElementById('day'+i);if(b)b.classList.toggle('active',i===offset)});
+ const status=document.getElementById('fixtureStatus'),list=document.getElementById('matches');
+ status.textContent=dateForOffset(offset)+' tarihli maçlar yükleniyor…';list.innerHTML='<div class="empty">Gerçek maç fikstürü alınıyor…</div>';
+ if(window.Android&&typeof window.Android.loadFixtures==='function'){window.Android.loadFixtures(dateForOffset(offset));return}
+ fetch('https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d='+dateForOffset(offset)+'&s=Soccer')
+ .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+ .then(data=>window.onFixturesLoaded(JSON.stringify(data)))
+ .catch(e=>window.onFixturesError(String(e)));
+}
+window.onFixturesLoaded=function(raw){
+ let data;try{data=typeof raw==='string'?JSON.parse(raw):raw}catch(e){window.onFixturesError('Maç verisi okunamadı.');return}
+ matches=Array.isArray(data.events)?data.events:[];
+ const status=document.getElementById('fixtureStatus');
+ status.textContent=matches.length?matches.length+' maç bulundu · Fikstür kaynağı: TheSportsDB':'Bu tarih için maç bulunamadı. Başka bir gün seçebilirsin.';
+ drawMatches();
+};
+window.onFixturesError=function(message){
+ document.getElementById('fixtureStatus').textContent='Maçlar şu anda yüklenemedi. İnternet bağlantını kontrol edip Yenile’ye bas.';
+ document.getElementById('matches').innerHTML='<div class="empty">Fikstür servisine ulaşılamadı.<br><small>'+esc(message)+'</small><br><button class="btn light" style="margin-top:12px" onclick="loadFixtures(selectedDay)">Tekrar dene</button></div>';
+};
+function drawMatches(){
+ const list=document.getElementById('matches');
+ if(!matches.length){list.innerHTML='<div class="empty">Seçilen gün için listelenecek maç yok.</div>';return}
+ list.innerHTML=matches.map((m,i)=>{
+  const time=m.strTime?m.strTime.slice(0,5):'Saat belirtilmedi',date=m.dateEvent||'';
+  return '<div class="match"><div class="league">'+esc(m.strLeague||'Futbol')+' <span class="time">'+esc(date)+' '+esc(time)+'</span></div><div class="teams">'+esc(m.strHomeTeam||'Ev sahibi')+'<br>'+esc(m.strAwayTeam||'Deplasman')+'</div><div class="muted" style="margin-top:7px">Bu fikstür kaynağı oran sağlamıyor.</div><button class="btn dark full" style="margin-top:10px" onclick="addEventPick('+i+')">Tahmin ve oran ekle</button></div>';
+ }).join('');
+}
+function addEventPick(i){
+ const m=matches[i];if(!m)return;
+ const selection=prompt(m.strHomeTeam+' - '+m.strAwayTeam+' için tahminini yaz (Örn. 1, X, 2, 2.5 Üst):');
+ if(!selection)return;
+ const raw=prompt('Oranı gir (Örn. 1.75). Oranı kendin girmelisin:');
+ const odds=Number(String(raw||'').replace(',','.'));
+ if(!Number.isFinite(odds)||odds<1){alert('Geçerli bir oran girmen gerekiyor.');return}
+ picks.push({league:m.strLeague||'Futbol',match:(m.strHomeTeam||'')+' - '+(m.strAwayTeam||''),selection:selection.trim(),odds});
+ renderPicks();showPage('coupon');
+}
 function addCustom(){let m=document.getElementById('customMatch').value.trim(),s=document.getElementById('customMarket').value.trim(),o=Number(document.getElementById('customOdds').value);if(!m||!s||!Number.isFinite(o)||o<1){alert('Maç, tahmin ve 1 veya üzeri oran gir.');return}picks.push({league:'Kendi eklediğim maç',match:m,selection:s,odds:o});document.getElementById('customMatch').value='';document.getElementById('customMarket').value='';document.getElementById('customOdds').value='';renderPicks();showPage('coupon')}
 function renderPicks(){let t=picks.reduce((a,p)=>a*p.odds,1),stake=Number(document.getElementById('stake').value)||0;document.getElementById('picks').innerHTML=picks.length?picks.map((p,i)=>'<div class="coupon-item"><div class="row"><b>'+esc(p.match)+'</b><button class="btn red" onclick="removePick('+i+')">Sil</button></div><div class="muted">'+esc(p.league)+' · '+esc(p.selection)+' · Oran '+p.odds.toFixed(2)+'</div></div>').join(''):'<div class="empty">Henüz seçim yapmadın.</div>';document.getElementById('totalOdds').textContent=t.toFixed(2);document.getElementById('possible').textContent=money(t*stake)}
 function removePick(i){picks.splice(i,1);renderPicks()}function clearPicks(){picks=[];renderPicks()}
@@ -33,5 +73,5 @@ function deleteCoupon(id){localStorage.setItem('kuponum_saved',JSON.stringify(sa
 function exportData(){let a=document.createElement('a'),u=URL.createObjectURL(new Blob([JSON.stringify(saved(),null,2)],{type:'application/json'}));a.href=u;a.download='kuponum-yedek.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
 function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!Array.isArray(d))throw 0;localStorage.setItem('kuponum_saved',JSON.stringify(d));renderSaved();alert('Yedek yüklendi.')}catch(x){alert('Dosya geçersiz.')}};r.readAsText(f)}
 function showPage(p){['home','coupon','saved'].forEach(x=>document.getElementById(x+'Page').classList.toggle('hide',x!==p));['Home','Coupon','Saved'].forEach(x=>document.getElementById('nav'+x).classList.toggle('active',x.toLowerCase()===p));if(p==='saved')renderSaved();if(p==='coupon')renderPicks();window.scrollTo(0,0)}
-document.getElementById('stake').addEventListener('input',renderPicks);drawMatches();renderPicks();renderSaved();
+document.getElementById('stake').addEventListener('input',renderPicks);loadFixtures(0);renderPicks();renderSaved();
 </script></body></html>
