@@ -25,7 +25,7 @@
 <div class="section-title">Spor dalları</div><div class="sports"><div class="sport active"><span>⚽</span>Futbol</div><div class="sport"><span>🏀</span>Basketbol</div><div class="sport"><span>🎾</span>Tenis</div><div class="sport"><span>🏐</span>Voleybol</div><div class="sport"><span>🏒</span>Diğer</div></div>
 <div class="row"><div class="section-title">Maç programı</div><button class="btn light" onclick="loadFixtures(selectedDay)">↻ Yenile</button></div>
 <div class="tabs"><button class="tab active" id="day0" onclick="loadFixtures(0)">Bugün</button><button class="tab" id="day1" onclick="loadFixtures(1)">Yarın</button><button class="tab" id="day2" onclick="loadFixtures(2)">Sonraki gün</button></div>
-<div id="fixtureStatus" class="muted" style="padding:4px 2px 10px">Maçlar yükleniyor…</div><div id="matches"></div>
+<div class="panel"><b>Oran servisi</b><div class="muted" style="margin:7px 0">Otomatik oranlar için yetkili API bağlantısı gerekir. API anahtarı APK içine konulmaz.</div><input id="oddsApiUrl" class="field" placeholder="Oran servisi adresi (https://...)"><button class="btn light full" onclick="saveOddsApi()">Servis adresini kaydet</button><div id="oddsConnection" class="muted" style="margin-top:7px">Henüz bağlanmadı</div></div><div id="fixtureStatus" class="muted" style="padding:4px 2px 10px">Maçlar yükleniyor…</div><div id="matches"></div>
 <div class="muted" style="padding:8px 2px">Fikstürler otomatik listelenir. Bu veri kaynağı bahis oranı sağlamadığı için gerçek oranlar gösterilmez.</div>
 </div>
 <div id="couponPage" class="hide"><div class="section-title">Kupon detayım</div><div class="panel"><div id="picks"><div class="empty">Henüz seçim yapmadın. Ana sayfadan oran seçebilirsin.</div></div><div class="row"><span class="muted">Toplam oran</span><strong id="totalOdds">1.00</strong></div><label class="muted" for="stake">Kupon tutarı (₺)</label><input id="stake" class="field" type="number" min="0" step=".01" value="10"><div class="row"><span class="muted">Olası dönüş (hesaplama)</span><strong class="green" id="possible">₺10,00</strong></div><button class="btn full" style="margin-top:14px" onclick="saveCoupon()">Kuponu kaydet</button><button class="btn light full" style="margin-top:8px" onclick="clearPicks()">Seçimleri temizle</button></div></div>
@@ -34,7 +34,7 @@
 </main>
 <nav class="bottom"><button class="nav active" id="navHome" onclick="showPage('home')"><span>⌂</span>Ana Sayfa</button><button class="nav" id="navCoupon" onclick="showPage('coupon')"><span>▤</span>Kuponum</button><button class="nav" id="navSaved" onclick="showPage('saved')"><span>▣</span>Kuponlarım</button><button class="nav" onclick="showPage('coupon')"><span>＋</span>Kupon Yap</button></nav>
 <script>
-let matches=[],picks=[],selectedDay=0;
+let matches=[],picks=[],selectedDay=0;\nfunction oddsApi(){return (localStorage.getItem('kuponum_odds_api')||'').replace(/\\/$/,'')}\nfunction saveOddsApi(){let v=document.getElementById('oddsApiUrl').value.trim().replace(/\\/$/,'');if(v&&!v.startsWith('https://')){alert('Adres https:// ile başlamalı.');return}localStorage.setItem('kuponum_odds_api',v);document.getElementById('oddsConnection').textContent=v?'Adres kaydedildi':'Bağlantı kaldırıldı';loadFixtures(selectedDay)}
 const money=n=>new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY'}).format(n);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function saved(){try{return JSON.parse(localStorage.getItem('kuponum_saved')||'[]')}catch(e){return []}}
@@ -66,10 +66,10 @@ function drawMatches(){
  if(!matches.length){list.innerHTML='<div class="empty">Seçilen gün için listelenecek maç yok.</div>';return}
  list.innerHTML=matches.map((m,i)=>{
   const time=m.strTime?m.strTime.slice(0,5):'Saat belirtilmedi',date=m.dateEvent||'';
-  return '<div class="match"><div class="league">'+esc(m.strLeague||'Futbol')+' <span class="time">'+esc(date)+' '+esc(time)+'</span></div><div class="teams">'+esc(m.strHomeTeam||'Ev sahibi')+'<br>'+esc(m.strAwayTeam||'Deplasman')+'</div><div class="muted" style="margin-top:7px">Bu fikstür kaynağı oran sağlamıyor.</div><button class="btn dark full" style="margin-top:10px" onclick="addEventPick('+i+')">Tahmin ve oran ekle</button></div>';
+  const odds=Array.isArray(m.odds)?m.odds:[];const oddsHtml=odds.length?'<div class="odds">'+odds.map((o,j)=>'<button class="odd" onclick="addProviderPick('+i+','+j+')">'+esc(o.market||'Oran')+'<b>'+Number(o.value).toFixed(2)+'</b><small>'+esc(o.bookmaker||'Kaynak')+'</small></button>').join('')+'</div>':'<div class="muted" style="margin-top:9px">'+(oddsApi()?'Bu maçta oran bulunamadı.':'Otomatik oran için servis bağlantısı gerekli.')+'</div>';return '<div class="match"><div class="league">'+esc(m.strLeague||'Futbol')+' <span class="time">'+esc(date)+' '+esc(time)+'</span></div><div class="teams">'+esc(m.strHomeTeam||'Ev sahibi')+'<br>'+esc(m.strAwayTeam||'Deplasman')+'</div>'+oddsHtml+'<button class="btn light full" style="margin-top:10px" onclick="addEventPick('+i+')">Kendi tahminini ekle</button></div>';
  }).join('');
 }
-function addEventPick(i){
+function addProviderPick(i,j){const m=matches[i],o=(m.odds||[])[j];if(!m||!o)return;picks.push({league:m.strLeague||'Futbol',match:m.strHomeTeam+' - '+m.strAwayTeam,selection:o.market||'Seçim',odds:Number(o.value),bookmaker:o.bookmaker||'Kaynak',eventId:m.idEvent||'',eventDate:m.dateEvent||dateForOffset(selectedDay),home:m.strHomeTeam||'',away:m.strAwayTeam||'',result:'pending'});renderPicks();showPage('coupon')}\nfunction addEventPick(i){
  const m=matches[i];if(!m)return;
  const selection=prompt(m.strHomeTeam+' - '+m.strAwayTeam+' için tahminini yaz (Örn. 1, X, 2, 2.5 Üst):');
  if(!selection)return;
@@ -116,5 +116,5 @@ function deleteCoupon(id){localStorage.setItem('kuponum_saved',JSON.stringify(sa
 function exportData(){let a=document.createElement('a'),u=URL.createObjectURL(new Blob([JSON.stringify(saved(),null,2)],{type:'application/json'}));a.href=u;a.download='kuponum-yedek.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
 function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!Array.isArray(d))throw 0;localStorage.setItem('kuponum_saved',JSON.stringify(d));renderSaved();alert('Yedek yüklendi.')}catch(x){alert('Dosya geçersiz.')}};r.readAsText(f)}
 function showPage(p){['home','coupon','saved'].forEach(x=>document.getElementById(x+'Page').classList.toggle('hide',x!==p));['Home','Coupon','Saved'].forEach(x=>document.getElementById('nav'+x).classList.toggle('active',x.toLowerCase()===p));if(p==='saved'){renderSaved();refreshCouponResults();}if(p==='coupon')renderPicks();window.scrollTo(0,0)}
-document.getElementById('stake').addEventListener('input',renderPicks);loadFixtures(0);renderPicks();renderSaved();
+document.getElementById('stake').addEventListener('input',renderPicks);document.getElementById('oddsApiUrl').value=oddsApi();document.getElementById('oddsConnection').textContent=oddsApi()?'Adres kayıtlı':'Henüz bağlanmadı';loadFixtures(0);renderPicks();renderSaved();
 </script></body></html>
