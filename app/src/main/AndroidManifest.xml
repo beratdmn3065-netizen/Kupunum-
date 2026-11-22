@@ -1,5 +1,11 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />
-    <application android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="Kuponum" android:usesCleartextTraffic="false">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application
+        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:label="Kuponum"
+        android:icon="@drawable/kuponum_icon"
+        android:roundIcon="@drawable/kuponum_icon"
+        android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
