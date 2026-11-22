@@ -3,8 +3,6 @@
     <application
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:label="Kuponum"
-        android:icon="@drawable/kuponum_icon"
-        android:roundIcon="@drawable/kuponum_icon"
         android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
