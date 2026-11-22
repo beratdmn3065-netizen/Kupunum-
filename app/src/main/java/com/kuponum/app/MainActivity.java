@@ -31,7 +31,16 @@ public class MainActivity extends Activity {
 
     private class FixtureBridge {
         @JavascriptInterface
+        public void loadResults(String date) {
+            loadEvents(date, true);
+        }
+
+        @JavascriptInterface
         public void loadFixtures(String date) {
+            loadEvents(date, false);
+        }
+
+        private void loadEvents(String date, boolean results) {
             if (date == null || !date.matches("\\d{4}-\\d{2}-\\d{2}")) {
                 sendError("Geçersiz tarih.");
                 return;
@@ -54,9 +63,14 @@ public class MainActivity extends Activity {
                     reader.close();
                     if (code < 200 || code >= 300) throw new Exception("HTTP " + code);
                     final String result = body.toString();
-                    runOnUiThread(() -> webView.evaluateJavascript("window.onFixturesLoaded(" + org.json.JSONObject.quote(result) + ")", null));
+                    runOnUiThread(() -> webView.evaluateJavascript(
+                        (results ? "window.onResultsLoaded(" : "window.onFixturesLoaded(") +
+                        org.json.JSONObject.quote(result) + ")", null));
                 } catch (Exception e) {
-                    sendError(e.getMessage() == null ? "Bağlantı hatası." : e.getMessage());
+                    final String error = e.getMessage() == null ? "Bağlantı hatası." : e.getMessage();
+                    runOnUiThread(() -> webView.evaluateJavascript(
+                        (results ? "window.onResultsError(" : "window.onFixturesError(") +
+                        org.json.JSONObject.quote(error) + ")", null));
                 } finally {
                     if (connection != null) connection.disconnect();
                 }
