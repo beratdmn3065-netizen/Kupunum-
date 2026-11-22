@@ -74,8 +74,25 @@ function drawMatches(){
  if(!matches.length){list.innerHTML='<div class="empty">Seçilen gün için listelenecek maç yok.</div>';return}
  list.innerHTML=matches.map((m,i)=>{
   const time=m.strTime?m.strTime.slice(0,5):'Saat belirtilmedi',date=m.dateEvent||'';
-  const odds=Array.isArray(m.odds)?m.odds:[];const oddsHtml=odds.length?'<div class="odds">'+odds.map((o,j)=>'<button class="odd" onclick="addProviderPick('+i+','+j+')">'+esc(o.market||'Oran')+'<b>'+Number(o.value).toFixed(2)+'</b><small>'+esc(o.bookmaker||'Kaynak')+'</small></button>').join('')+'</div>':'<div class="muted" style="margin-top:9px">'+(oddsApi()?'Bu maçta oran bulunamadı.':'Otomatik oran için servis bağlantısı gerekli.')+'</div>';return '<div class="match"><div class="league">'+esc(m.strLeague||'Futbol')+' <span class="time">'+esc(date)+' '+esc(time)+'</span></div><div class="teams">'+esc(m.strHomeTeam||'Ev sahibi')+'<br>'+esc(m.strAwayTeam||'Deplasman')+'</div>'+oddsHtml+'<button class="btn light full" style="margin-top:10px" onclick="addEventPick('+i+')">Kendi tahminini ekle</button></div>';
+  const odds=Array.isArray(m.odds)?m.odds:[];
+  const estimated=estimateOdds(m);
+  const oddsHtml=odds.length?'<div class="muted" style="margin-top:8px">Sağlayıcı oranları</div><div class="odds">'+odds.map((o,j)=>'<button class="odd" onclick="addProviderPick('+i+','+j+')">'+esc(o.market||'Oran')+'<b>'+Number(o.value).toFixed(2)+'</b><small>'+esc(o.bookmaker||'Kaynak')+'</small></button>').join('')+'</div>':'<div class="muted" style="margin-top:8px">Yaklaşık oranlar · Resmî bahis oranı değildir</div><div class="odds">'+estimated.map((o,j)=>'<button class="odd" onclick="addEstimatedPick('+i+','+j+')">'+o.label+'<b>'+o.value.toFixed(2)+'</b><small>Tahmini</small></button>').join('')+'</div>';
+  return '<div class="match"><div class="league">'+esc(m.strLeague||'Futbol')+' <span class="time">'+esc(date)+' '+esc(time)+'</span></div><div class="teams">'+esc(m.strHomeTeam||'Ev sahibi')+'<br>'+esc(m.strAwayTeam||'Deplasman')+'</div>'+oddsHtml+'<button class="btn light full" style="margin-top:10px" onclick="addEventPick('+i+')">Kendi tahminini ekle</button></div>';
  }).join('');
+}
+function estimateOdds(m){
+ const hash=s=>Array.from(String(s||'')).reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,7);
+ const a=hash(m.strHomeTeam),b=hash(m.strAwayTeam);
+ const strength=0.38+((a%25)/100), away=0.38+((b%25)/100);
+ const homeP=Math.max(.2,Math.min(.62,strength)),awayP=Math.max(.2,Math.min(.62,away));
+ const drawP=Math.max(.20,1-homeP-awayP);
+ const total=homeP+drawP+awayP;
+ return [{label:'1',value:Math.max(1.15,Math.min(8,(1.12/(homeP/total))))},{label:'X',value:Math.max(1.15,Math.min(8,(1.12/(drawP/total))))},{label:'2',value:Math.max(1.15,Math.min(8,(1.12/(awayP/total))))}];
+}
+function addEstimatedPick(i,j){
+ const m=matches[i];if(!m)return;const o=estimateOdds(m)[j];if(!o)return;
+ picks.push({league:m.strLeague||'Futbol',match:(m.strHomeTeam||'')+' - '+(m.strAwayTeam||''),selection:o.label,odds:o.value,bookmaker:'Tahmini (resmî değil)',eventId:m.idEvent||'',eventDate:m.dateEvent||dateForOffset(selectedDay),home:m.strHomeTeam||'',away:m.strAwayTeam||'',result:'pending'});
+ renderPicks();showPage('coupon');
 }
 function addProviderPick(i,j){const m=matches[i],o=(m.odds||[])[j];if(!m||!o)return;picks.push({league:m.strLeague||'Futbol',match:m.strHomeTeam+' - '+m.strAwayTeam,selection:o.market||'Seçim',odds:Number(o.value),bookmaker:o.bookmaker||'Kaynak',eventId:m.idEvent||'',eventDate:m.dateEvent||dateForOffset(selectedDay),home:m.strHomeTeam||'',away:m.strAwayTeam||'',result:'pending'});renderPicks();showPage('coupon')}
 function addEventPick(i){
