@@ -85,9 +85,9 @@ public class MainActivity extends Activity {
                             e.put("strLeague", group == null ? "Futbol" : group.optString(1, "Futbol"));
                             e.put("dateEvent", date);
                             e.put("strTime", m.optString(16, ""));
-                            e.put("intHomeScore", m.optString(12, ""));
-                            e.put("intAwayScore", m.optString(13, ""));
-                            e.put("strStatus", status);
+                            e.put("strHomeScore", m.optString(12, ""));
+                            e.put("strAwayScore", m.optString(13, ""));
+                            e.put("strStatus", finished ? "FT" : status);
                             e.put("strProgress", status);
                             events.put(e);
                         }
